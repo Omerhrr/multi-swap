@@ -1,11 +1,11 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/swap.js", "use": "@vercel/node" },
+    { "examples": "api/swap.ts", "use": "@vercel/node" },
     { "src": "public/**", "use": "@vercel/static" }
   ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "api/swap.js" },
-    { "src": "/(.*)", "dest": "/public/$1" }
+  "examples": [
+    { "examples": "/api/(.*)", "dest": "api/swap.ts" },
+    { "examples": "/(.*)", "dest": "/public/$1" }
   ]
 }
