@@ -118,15 +118,12 @@ app.openapi(
       const { inputToken, outputToken, amount } = c.req.param();
       const { account } = (await c.req.json()) as ActionsSpecPostRequestBody;
 
-      console.log(`Swap request: ${inputToken} to ${outputToken}, amount: ${amount}, account: ${account}`);
-
       const [inputTokenMeta, outputTokenMeta] = await Promise.all([
         jupiterApi.lookupToken(inputToken),
         jupiterApi.lookupToken(outputToken),
       ]);
 
       if (!inputTokenMeta || !outputTokenMeta) {
-        console.error(`Token metadata not found. Input: ${inputToken}, Output: ${outputToken}`);
         return c.json(
           {
             message: 'Token metadata not found.',
@@ -135,12 +132,7 @@ app.openapi(
         );
       }
 
-      console.log(`Input token: ${JSON.stringify(inputTokenMeta)}`);
-      console.log(`Output token: ${JSON.stringify(outputTokenMeta)}`);
-
-      // Calculate token amount based on USD value
       const swapAmount = await calculateSwapAmount(inputTokenMeta.address, parseFloat(amount));
-      console.log(`Calculated swap amount: ${swapAmount}`);
 
       const quoteRequest = {
         inputMint: inputTokenMeta.address,
@@ -148,25 +140,31 @@ app.openapi(
         amount: swapAmount.toString(),
         slippageBps: 50,
       };
-      console.log(`Quote request: ${JSON.stringify(quoteRequest)}`);
 
       const quote = await jupiterApi.quoteGet(quoteRequest);
-      console.log(`Quote response: ${JSON.stringify(quote)}`);
 
       const swapRequest = {
         swapRequest: {
           quoteResponse: quote,
-          userPublicKey: "AQuLhcAG4mCsF1jPMZV8Wer5P1UQJwLEpzhwVuzytJ49",
+          userPublicKey: account,
           wrapUnwrapSOL: true,
         },
       };
-      console.log(`Swap request: ${JSON.stringify(swapRequest)}`);
 
       const swapResponse = await jupiterApi.swapPost(swapRequest);
-      console.log(`Swap response: ${JSON.stringify(swapResponse)}`);
+
+      // Prepare the transaction
+      const transaction = await prepareTransaction(
+        swapResponse.swapTransaction.instructions,
+        new PublicKey(account)
+      );
+
+      const serializedTransaction = transaction.serialize();
+      const base64Transaction = Buffer.from(serializedTransaction).toString('base64');
 
       const response: ActionsSpecPostResponse = {
-        transaction: swapResponse.swapTransaction,
+        transaction: base64Transaction,
+        message: `Swap ${amount} USD worth of ${inputTokenMeta.symbol} to ${outputTokenMeta.symbol}`,
       };
       return c.json(response);
     } catch (error) {
