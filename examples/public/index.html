@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi Token Swap</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+        <h1 class="text-2xl font-bold mb-6 text-center text-gray-800">Multi Token Swap</h1>
+        
+        <div class="mb-4">
+            <label for="inputToken" class="block text-sm font-medium text-gray-700 mb-1">Input Token</label>
+            <select id="inputToken" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="">Select Input Token</option>
+            </select>
+        </div>
+        
+        <div class="mb-4">
+            <label for="outputToken" class="block text-sm font-medium text-gray-700 mb-1">Output Token</label>
+            <select id="outputToken" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="">Select Output Token</option>
+            </select>
+        </div>
+        
+        <div class="mb-6">
+            <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">Amount (USD)</label>
+            <input type="number" id="amount" value="10" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+        
+        <button id="swapButton" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            Swap Tokens
+        </button>
+        
+        <div id="loadingIndicator" class="hidden mt-4 text-center">
+            <svg class="animate-spin h-5 w-5 mr-3 inline-block text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Processing...
+        </div>
+        
+        <div id="error" class="hidden mt-4 p-4 text-red-700 bg-red-100 rounded-md"></div>
+        
+        <div id="swapInfo" class="hidden mt-6 p-4 bg-green-100 rounded-md">
+            <h2 class="text-lg font-semibold mb-2 text-green-800">Swap Information</h2>
+            <p id="transactionInfo" class="text-sm text-green-700"></p>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = '/api/swap';
+        const inputTokenSelect = document.getElementById('inputToken');
+        const outputTokenSelect = document.getElementById('outputToken');
+        const amountInput = document.getElementById('amount');
+        const swapButton = document.getElementById('swapButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const errorDiv = document.getElementById('error');
+        const swapInfoDiv = document.getElementById('swapInfo');
+        const transactionInfoPara = document.getElementById('transactionInfo');
+
+        async function fetchTokens() {
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                const tokens = data.links.actions[0].parameters.filter(param => param.name !== 'amount');
+                
+                tokens.forEach(token => {
+                    const option = document.createElement('option');
+                    option.value = token.name;
+                    option.textContent = token.label;
+                    inputTokenSelect.appendChild(option);
+                    outputTokenSelect.appendChild(option.cloneNode(true));
+                });
+            } catch (error) {
+                showError('Failed to fetch tokens');
+            }
+        }
+
+        async function handleSwap() {
+            const inputToken = inputTokenSelect.value;
+            const outputToken = outputTokenSelect.value;
+            const amount = amountInput.value;
+
+            if (!inputToken || !outputToken || !amount) {
+                showError('Please select both tokens and enter an amount');
+                return;
+            }
+
+            showLoading(true);
+            hideError();
+            hideSwapInfo();
+
+            try {
+                const response = await fetch(`${API_URL}/${inputToken}/${outputToken}/${amount}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ account: 'REPLACE_WITH_ACTUAL_ACCOUNT' }),
+                });
+                const data = await response.json();
+                showSwapInfo(data);
+            } catch (error) {
+                showError('Failed to perform swap');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function showLoading(isLoading) {
+            loadingIndicator.classList.toggle('hidden', !isLoading);
+            swapButton.disabled = isLoading;
+        }
+
+        function showError(message) {
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        function hideError() {
+            errorDiv.classList.add('hidden');
+        }
+
+        function showSwapInfo(data) {
+            transactionInfoPara.textContent = `Transaction: ${data.transaction.slice(0, 20)}...`;
+            swapInfoDiv.classList.remove('hidden');
+        }
+
+        function hideSwapInfo() {
+            swapInfoDiv.classList.add('hidden');
+        }
+
+        fetchTokens();
+        swapButton.addEventListener('click', handleSwap);
+    </script>
+</body>
+</html>
