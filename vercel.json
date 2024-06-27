@@ -3,9 +3,5 @@
   "builds": [
     { "examples": "api/swap.ts", "use": "@vercel/node" },
     { "src": "public/**", "use": "@vercel/static" }
-  ],
-  "examples": [
-    { "examples": "/api/(.*)", "dest": "api/swap.ts" },
-    { "examples": "/(.*)", "dest": "/public/$1" }
   ]
 }
